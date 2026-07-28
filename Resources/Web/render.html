@@ -1,0 +1,90 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="katex.min.css">
+<script src="katex.min.js"></script>
+<script src="mermaid.min.js"></script>
+<style>
+  html, body { margin: 0; padding: 0; background: transparent; }
+  /* The stage is measured after rendering, so it must shrink-wrap its content. */
+  #stage { display: inline-block; }
+  #stage svg { display: block; }
+  .katex { color: inherit; }
+  .katex-display { margin: 0; }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<script>
+"use strict";
+
+mermaid.initialize({ startOnLoad: false, securityLevel: "strict" });
+let mermaidCounter = 0;
+
+/**
+ * Renders one equation or diagram and reports the size the host should snapshot.
+ * Called from Swift via callAsyncJavaScript.
+ */
+window.markerRender = async function (p) {
+  const stage = document.getElementById("stage");
+  stage.innerHTML = "";
+  stage.style.color = p.color;
+  stage.style.fontSize = p.fontSize + "px";
+  stage.style.fontFamily = p.fontFamily || "-apple-system, system-ui, sans-serif";
+  stage.style.maxWidth = p.maxWidth ? p.maxWidth + "px" : "none";
+  document.body.style.background = p.background || "transparent";
+
+  try {
+    if (p.kind === "math") {
+      stage.innerHTML = katex.renderToString(p.source, {
+        displayMode: !!p.display,
+        throwOnError: true,
+        output: "html",
+        strict: "ignore",
+        trust: false,
+        maxSize: 100,
+        maxExpand: 1000
+      });
+    } else {
+      mermaid.initialize({
+        startOnLoad: false,
+        securityLevel: "strict",
+        theme: p.dark ? "dark" : "default",
+        fontFamily: p.fontFamily || "sans-serif",
+        themeVariables: { fontSize: p.fontSize + "px", background: "transparent" }
+      });
+      mermaidCounter += 1;
+      const out = await mermaid.render("marker-diagram-" + mermaidCounter, p.source);
+      stage.innerHTML = out.svg;
+      const svg = stage.querySelector("svg");
+      if (svg) {
+        // Mermaid emits a percentage width; pin it to its intrinsic size so the
+        // stage can shrink-wrap and the snapshot rect is exact.
+        const box = svg.viewBox && svg.viewBox.baseVal;
+        if (box && box.width) {
+          let w = box.width, h = box.height;
+          if (p.maxWidth && w > p.maxWidth) { h = h * (p.maxWidth / w); w = p.maxWidth; }
+          svg.setAttribute("width", w);
+          svg.setAttribute("height", h);
+        }
+        svg.style.maxWidth = "none";
+      }
+    }
+  } catch (e) {
+    return { ok: false, error: String((e && e.message) || e) };
+  }
+
+  // Let fonts settle before measuring, or KaTeX reports pre-webfont metrics.
+  if (document.fonts && document.fonts.ready) { await document.fonts.ready; }
+  const rect = stage.getBoundingClientRect();
+  if (!rect.width || !rect.height) {
+    return { ok: false, error: "Rendered to an empty box" };
+  }
+  return { ok: true, width: Math.ceil(rect.width), height: Math.ceil(rect.height) };
+};
+
+window.markerReady = true;
+</script>
+</body>
+</html>
