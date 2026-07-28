@@ -27,6 +27,8 @@ final class MarkdownTextView: NSTextView {
     var caretBlinkTimer: Timer?
     /// Caret rect in view coordinates, refreshed off the draw path.
     var cachedTableCaretRect: NSRect?
+    var tableCaretRefreshScheduled = false
+    var tableCaretLayer: CALayer?
     private var _lastTableSelectionKey = ""
     private var renderRepaintWork: DispatchWorkItem?
     private var isAdjustingScroll = false
@@ -447,9 +449,9 @@ final class MarkdownTextView: NSTextView {
         storage.endEditing()
         isStyling = false
         invalidateLayout(for: range)
-        if cachedTableCaretRect != nil || isEditingTableCell {
-            cachedTableCaretRect = tableCaretRect()
-        }
+        // The caret rect comes from a layout fragment frame, which is meaningless
+        // until the layout we just invalidated has settled. Recompute next turn.
+        scheduleTableCaretRefresh()
     }
 
     private func invalidateLayout(for range: NSRange?) {
@@ -615,6 +617,18 @@ final class MarkdownTextView: NSTextView {
         if preferences.focusMode { restyleFocusContext() }
     }
 
+    override func becomeFirstResponder() -> Bool {
+        let accepted = super.becomeFirstResponder()
+        updateTableCaretLayer()
+        return accepted
+    }
+
+    override func resignFirstResponder() -> Bool {
+        let resigned = super.resignFirstResponder()
+        updateTableCaretLayer()
+        return resigned
+    }
+
     override func didChangeText() {
         super.didChangeText()
         onTextChange?()
@@ -658,11 +672,6 @@ final class MarkdownTextView: NSTextView {
     override func doCommand(by selector: Selector) {
         if handleTableKey(selector) { return }
         super.doCommand(by: selector)
-    }
-
-    override func draw(_ dirtyRect: NSRect) {
-        super.draw(dirtyRect)
-        drawTableCaret()
     }
 
     // MARK: - Geometry

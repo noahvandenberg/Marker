@@ -7,6 +7,8 @@ final class EditorViewController: NSViewController, NSUserInterfaceValidations {
     private(set) var textView: MarkdownTextView!
     private var scrollView: NSScrollView!
     private var titlebarBackdrop: NSVisualEffectView!
+    private var updateBar: UpdateBar?
+    private var updateBarTop: NSLayoutConstraint?
     private var contentStorage: NSTextContentStorage!
     private var layoutManager: NSTextLayoutManager!
 
@@ -88,6 +90,12 @@ final class EditorViewController: NSViewController, NSUserInterfaceValidations {
             selector: #selector(preferencesDidChange),
             name: .markerPreferencesDidChange,
             object: nil)
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(updateAvailable(_:)),
+            name: .markerUpdateAvailable,
+            object: nil)
+        if let update = UpdateChecker.shared.available { showUpdateBar(update) }
 
 
     }
@@ -128,6 +136,44 @@ final class EditorViewController: NSViewController, NSUserInterfaceValidations {
         if preferences.typewriterMode { centerCaret(animated: false) }
     }
 
+    // MARK: - Update bar
+
+    @objc private func updateAvailable(_ note: Notification) {
+        guard let update = note.object as? AvailableUpdate else { return }
+        showUpdateBar(update)
+    }
+
+    private func showUpdateBar(_ update: AvailableUpdate) {
+        guard updateBar == nil else { return }
+        let bar = UpdateBar()
+        bar.present(update)
+        bar.onView = { NSWorkspace.shared.open(update.url) }
+        bar.onDismiss = { [weak self] in
+            UpdateChecker.shared.skip(update)
+            self?.hideUpdateBar()
+        }
+        view.addSubview(bar)
+
+        // Sits under the titlebar, above the text, and pushes nothing around:
+        // the scroll view's top inset makes room for it.
+        let top = bar.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor)
+        NSLayoutConstraint.activate([
+            bar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            bar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            top,
+        ])
+        updateBarTop = top
+        updateBar = bar
+        updateMeasure()
+    }
+
+    private func hideUpdateBar() {
+        updateBar?.removeFromSuperview()
+        updateBar = nil
+        updateBarTop = nil
+        updateMeasure()
+    }
+
     // MARK: - Measure
 
     private func updateMeasure() {
@@ -146,7 +192,7 @@ final class EditorViewController: NSViewController, NSUserInterfaceValidations {
 
         // Content scrolls under the transparent titlebar, so the top inset comes
         // from the safe area rather than a hard-coded titlebar height.
-        let top = scrollView.safeAreaInsets.top + 8
+        let top = scrollView.safeAreaInsets.top + 8 + (updateBar?.frame.height ?? 0)
         let bottom = preferences.typewriterMode ? scrollView.frame.height * 0.45 : 80
         let insets = NSEdgeInsets(top: top, left: 0, bottom: bottom, right: 0)
         if scrollView.contentInsets.top != insets.top

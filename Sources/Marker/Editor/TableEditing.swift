@@ -127,16 +127,43 @@ extension MarkdownTextView {
 extension MarkdownTextView {
 
     /// The system caret is hidden while editing a cell — the real text sits on a
-    /// collapsed line behind the drawing — so it is painted here instead.
+    /// collapsed line behind the drawing — so one is drawn here instead.
     ///
-    /// Uses the cached rect: computing it asks the layout manager for a fragment
-    /// frame, and forcing layout from inside a draw pass makes scrolling stutter
-    /// and fight itself.
-    func drawTableCaret() {
-        guard tableCaretIsVisible, let rect = cachedTableCaretRect else { return }
-        styler.theme.insertionPoint.setFill()
-        NSRect(x: rect.minX.rounded(), y: rect.minY,
-               width: 1.5, height: rect.height).fill()
+    /// It lives in its own layer rather than in `draw(_:)`. TextKit 2 composites
+    /// each text fragment into its own layer above the view's backing store, so
+    /// anything painted in `draw` ends up *underneath* the table it belongs to.
+    /// A layer with a raised `zPosition` sits above them all, and moving it
+    /// costs no drawing or layout.
+    func updateTableCaretLayer() {
+        // Match the system caret: only shown when this view is actually taking
+        // keystrokes.
+        let focused = window?.isKeyWindow == true && window?.firstResponder === self
+        guard let rect = cachedTableCaretRect, focused else {
+            tableCaretLayer?.isHidden = true
+            return
+        }
+        let layer = ensureCaretLayer()
+        // A dynamic colour resolves against whatever appearance is current, which
+        // outside a draw pass is not this view's — so resolve it explicitly.
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            layer.backgroundColor = styler.theme.insertionPoint.cgColor
+        }
+        layer.frame = NSRect(x: rect.minX.rounded(), y: rect.minY,
+                             width: 1.5, height: rect.height)
+        layer.isHidden = !tableCaretIsVisible
+    }
+
+    private func ensureCaretLayer() -> CALayer {
+        if let tableCaretLayer { return tableCaretLayer }
+        let layer = CALayer()
+        layer.zPosition = 100
+        // No implicit animation: the caret must snap, not glide.
+        layer.actions = ["position": NSNull(), "bounds": NSNull(),
+                         "hidden": NSNull(), "backgroundColor": NSNull()]
+        wantsLayer = true
+        self.layer?.addSublayer(layer)
+        tableCaretLayer = layer
+        return layer
     }
 
     /// Recomputes the cached caret rect. Call on selection change and after a
@@ -154,11 +181,35 @@ extension MarkdownTextView {
         guard inTable else {
             caretBlinkTimer?.invalidate()
             caretBlinkTimer = nil
+            tableCaretLayer?.isHidden = true
             return
         }
         tableCaretIsVisible = true
         restartCaretBlink()
-        setNeedsDisplay(tableCaretDirtyRect())
+        updateTableCaretLayer()
+        // Layout may still be settling from a restyle; confirm on the next turn.
+        scheduleTableCaretRefresh()
+    }
+
+    /// Re-reads the caret's position once layout has settled.
+    ///
+    /// Coalesced to one refresh per runloop turn, and deliberately off both the
+    /// draw path and the scroll path — asking for a fragment frame forces layout.
+    func scheduleTableCaretRefresh() {
+        guard !tableCaretRefreshScheduled else { return }
+        tableCaretRefreshScheduled = true
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.tableCaretRefreshScheduled = false
+            guard self.isEditingTableCell || self.cachedTableCaretRect != nil
+                    || self.tableRegionIndex(containing: self.selectedRange().location) != nil
+            else { return }
+
+            let updated = self.tableCaretRect()
+            guard updated != self.cachedTableCaretRect else { return }
+            self.cachedTableCaretRect = updated
+            self.updateTableCaretLayer()
+        }
     }
 
     private func restartCaretBlink() {
@@ -167,7 +218,7 @@ extension MarkdownTextView {
             Task { @MainActor in
                 guard let self, self.isEditingTableCell else { return }
                 self.tableCaretIsVisible.toggle()
-                self.setNeedsDisplay(self.tableCaretDirtyRect())
+                self.updateTableCaretLayer()
             }
         }
         RunLoop.current.add(timer, forMode: .common)

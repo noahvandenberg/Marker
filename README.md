@@ -103,6 +103,13 @@ for GPT-4o and GPT-5 and close for other families, whose vocabularies aren't
 published. It costs ~3.6 MB on disk and ~30 MB of RAM once loaded, so Settings
 can turn it off.
 
+**Updates.** Once a day Marker asks the GitHub Releases API whether a newer
+version is tagged, and shows a slim dismissible bar across the top of the window
+if so. `Marker ▸ Check for Updates…` runs it on demand. This is the app's only
+network request — it sends nothing about your documents and talks to no host but
+`api.github.com` — and Settings can turn it off. It stays quiet until the repo
+has a published release whose tag is a higher version than the running build.
+
 **The rest.** Document-based: tabs, autosave in place, Versions, Revert.
 Original file encoding and CRLF line endings survive a round trip. An Outline
 menu jumps to any heading. `⌘`-click opens a link. Export to a self-contained
@@ -224,6 +231,8 @@ swiftc -O -o /tmp/makeicon Tools/makeicon.swift && /tmp/makeicon Resources/AppIc
 - HTML export keeps math as TeX (`\(…\)`) and Mermaid as `<pre class="mermaid">`
   rather than embedding the rendered images.
 - Remote images are off by default (Settings turns them on).
+- The update check only notices *published GitHub releases*; a plain commit or
+  an unreleased tag won't trigger it.
 - Single-document: one file per window. No folder sidebar or vault-wide search
   (find within a document works).
 - Very long single lines in a table can push it past the measure; wrapping is

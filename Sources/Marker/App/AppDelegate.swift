@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private var settingsWindow: NSWindow?
@@ -9,6 +10,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         NSApp.mainMenu = MainMenu.build(outlineDelegate: self)
         NSApp.appearance = Preferences.shared.appearance.nsAppearance
         _ = NSDocumentController.shared
+        UpdateChecker.shared.checkIfDue()
+    }
+
+    @objc func checkForUpdates(_ sender: Any?) {
+        UpdateChecker.shared.check(userInitiated: true) { result in
+            switch result {
+            case .success(let update) where update == nil:
+                let alert = NSAlert()
+                alert.messageText = "Marker is up to date."
+                alert.informativeText =
+                    "You're running version \(UpdateChecker.shared.currentVersion)."
+                alert.runModal()
+            case .failure(let error):
+                let alert = NSAlert()
+                alert.messageText = "Couldn't check for updates."
+                alert.informativeText = error.localizedDescription
+                alert.runModal()
+            case .success:
+                break   // the bar appears on its own
+            }
+        }
     }
 
     func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool { true }

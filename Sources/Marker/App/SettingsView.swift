@@ -84,6 +84,15 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
+            Section("Updates") {
+                Toggle("Check GitHub for new versions", isOn: $preferences.checkForUpdates)
+                Text("Once a day, Marker asks github.com whether a newer release "
+                     + "exists. It is the only network request the app makes, and "
+                     + "it sends nothing about your documents.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             Section {
                 HStack {
                     Spacer()

@@ -45,6 +45,7 @@ final class Preferences: ObservableObject {
         static let loadRemoteImages = "loadRemoteImages"
         static let showMarkdownSource = "showMarkdownSource"
         static let showTokenCount = "showTokenCount"
+        static let checkForUpdates = "checkForUpdates"
     }
 
     @Published var fontSize: CGFloat { didSet { persist(Double(fontSize), Key.fontSize) } }
@@ -68,6 +69,8 @@ final class Preferences: ObservableObject {
     @Published var showMarkdownSource: Bool { didSet { persist(showMarkdownSource, Key.showMarkdownSource) } }
     /// Token counting loads a ~3.6 MB vocabulary, so it can be switched off.
     @Published var showTokenCount: Bool { didSet { persist(showTokenCount, Key.showTokenCount) } }
+    /// The only thing in the app that uses the network.
+    @Published var checkForUpdates: Bool { didSet { persist(checkForUpdates, Key.checkForUpdates) } }
 
     private var suppressNotifications = true
     private var cancellables = Set<AnyCancellable>()
@@ -89,6 +92,7 @@ final class Preferences: ObservableObject {
             Key.loadRemoteImages: false,
             Key.showMarkdownSource: false,
             Key.showTokenCount: true,
+            Key.checkForUpdates: true,
         ])
 
         fontSize = CGFloat(defaults.double(forKey: Key.fontSize))
@@ -105,6 +109,7 @@ final class Preferences: ObservableObject {
         loadRemoteImages = defaults.bool(forKey: Key.loadRemoteImages)
         showMarkdownSource = defaults.bool(forKey: Key.showMarkdownSource)
         showTokenCount = defaults.bool(forKey: Key.showTokenCount)
+        checkForUpdates = defaults.bool(forKey: Key.checkForUpdates)
 
         suppressNotifications = false
     }

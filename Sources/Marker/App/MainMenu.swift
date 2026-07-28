@@ -47,6 +47,8 @@ enum MainMenu {
         let (item, menu) = submenu("Marker")
         add(menu, "About Marker", #selector(NSApplication.orderFrontStandardAboutPanel(_:)))
         menu.addItem(.separator())
+        add(menu, "Check for Updates…", #selector(AppDelegate.checkForUpdates(_:)))
+        menu.addItem(.separator())
         add(menu, "Settings…", #selector(AppDelegate.showSettings(_:)), ",")
         menu.addItem(.separator())
 
