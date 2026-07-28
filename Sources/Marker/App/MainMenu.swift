@@ -156,6 +156,7 @@ enum MainMenu {
         add(menu, "Inline Code", #selector(MarkdownTextView.toggleInlineCode(_:)), "c",
             [.command, .control])
         add(menu, "Link…", #selector(MarkdownTextView.insertMarkdownLink(_:)), "k")
+        add(menu, "Open Link", #selector(MarkdownTextView.openLinkAtCaret(_:)), "\r")
         menu.addItem(.separator())
 
         let (headingItem, headings) = submenu("Heading")

@@ -479,21 +479,57 @@ extension MarkdownTextView {
     }
 }
 
-// MARK: - Mouse: checkboxes and links
+// MARK: - Links, checkboxes and clicks
 
 extension MarkdownTextView {
 
+    /// The link at a document offset.
+    ///
+    /// Read from the parse rather than from a text attribute: a drawn table
+    /// paints its own cells and never runs the inline styling pass, so an
+    /// attribute-based lookup finds nothing inside one.
+    func linkURL(atCharacter index: Int) -> URL? {
+        syncParseIfNeeded()
+        guard !parsed.lines.isEmpty, index >= 0, index <= nsString.length else { return nil }
+        let line = parsed.lines[parsed.lineIndex(at: index)]
+        guard line.contentRange.length > 0 else { return nil }
+
+        let spans = InlineScanner.scan(chars,
+                                       range: line.contentRange,
+                                       definitions: parsed.linkDefinitions)
+        for span in spans {
+            switch span.kind {
+            case .link, .autolink, .image:
+                guard NSLocationInRange(index, span.range) || NSMaxRange(span.range) == index,
+                      let destination = span.destination else { continue }
+                return resolvedURL(destination)
+            default:
+                continue
+            }
+        }
+        return nil
+    }
+
+    /// Document offset under a point, including inside a drawn table.
+    func documentIndex(at point: NSPoint) -> Int {
+        tableSourceIndex(at: point) ?? characterIndexForInsertion(at: point)
+    }
+
     override func mouseDown(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
+        // Links look like links, so a plain click follows them. Option-click puts
+        // the caret inside instead, for editing the text of one.
+        let placingCaret = event.modifierFlags.contains(.option)
+        let index = documentIndex(at: point)
 
-        if event.modifierFlags.contains(.command), let url = link(at: point) {
+        if !placingCaret, let url = linkURL(atCharacter: index) {
             open(url)
             return
         }
 
         // A drawn table has no text layout of its own, so a click on it has to
         // be mapped back onto the source offset the picture stands for.
-        if let index = tableSourceIndex(at: point) {
+        if tableSourceIndex(at: point) != nil {
             window?.makeFirstResponder(self)
             if event.clickCount >= 2,
                let cell = tablePlacement(containing: index)?.table.cell(containingSource: index) {
@@ -507,58 +543,68 @@ extension MarkdownTextView {
         super.mouseDown(with: event)
     }
 
-    override func resetCursorRects() {
-        super.resetCursorRects()
-        addCursorRect(bounds, cursor: .iBeam)
+    /// Opens the link the caret is sitting in.
+    @objc func openLinkAtCaret(_ sender: Any?) {
+        guard let url = linkURL(atCharacter: selectedRange().location) else { return }
+        open(url)
     }
 
-    private func characterIndex(at point: NSPoint) -> Int? {
-        guard let container = textContainer, let layoutManager = textLayoutManager else { return nil }
-        _ = container
-        let inset = textContainerInset
-        let target = NSPoint(x: point.x - inset.width, y: point.y - inset.height)
-        guard let fragment = layoutManager.textLayoutFragment(for: target),
-              let elementRange = fragment.textElement?.elementRange,
-              let contentManager = layoutManager.textContentManager else { return nil }
-        let start = contentManager.offset(from: contentManager.documentRange.location,
-                                          to: elementRange.location)
-        let local = NSPoint(x: target.x - fragment.layoutFragmentFrame.minX,
-                            y: target.y - fragment.layoutFragmentFrame.minY)
-        guard let lineFragment = fragment.textLineFragments.first(where: {
-            $0.typographicBounds.contains(NSPoint(x: local.x, y: local.y))
-        }) ?? fragment.textLineFragments.first else { return start }
-        let offset = lineFragment.characterIndex(for: local)
-        return start + offset
+    var caretIsInLink: Bool { linkURL(atCharacter: selectedRange().location) != nil }
+
+    // MARK: - Cursor
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let linkTracking { removeTrackingArea(linkTracking) }
+        let area = NSTrackingArea(rect: .zero,
+                                  options: [.mouseMoved, .activeInKeyWindow, .inVisibleRect],
+                                  owner: self)
+        addTrackingArea(area)
+        linkTracking = area
     }
 
-    private func link(at point: NSPoint) -> URL? {
-        guard let storage = textStorage, let index = characterIndex(at: point),
-              index >= 0, index < storage.length else { return nil }
-        guard let destination = storage.attribute(.markdownLink, at: index,
-                                                  effectiveRange: nil) as? String
-        else { return nil }
-        return resolvedURL(destination)
+    override func mouseMoved(with event: NSEvent) {
+        super.mouseMoved(with: event)
+        // Only a hover that changed character matters; this runs on mouse move,
+        // never on scroll, and does no work beyond a hit test.
+        let point = convert(event.locationInWindow, from: nil)
+        let index = documentIndex(at: point)
+        guard index != lastHoveredIndex else { return }
+        lastHoveredIndex = index
+        if linkURL(atCharacter: index) != nil {
+            NSCursor.pointingHand.set()
+        } else {
+            NSCursor.iBeam.set()
+        }
     }
+
+    // MARK: - Resolution
 
     private func resolvedURL(_ destination: String) -> URL? {
-        if destination.hasPrefix("#") { return nil }
-        if let url = URL(string: destination), let scheme = url.scheme?.lowercased() {
+        let trimmed = destination.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty, !trimmed.hasPrefix("#") else { return nil }
+
+        if let url = URL(string: trimmed), let scheme = url.scheme?.lowercased() {
             guard ["http", "https", "mailto", "file"].contains(scheme) else { return nil }
             return url
         }
         // A relative path resolves against the document's own folder.
         guard let base = (window?.windowController?.document as? MarkdownDocument)?
             .fileURL?.deletingLastPathComponent() else { return nil }
-        return URL(fileURLWithPath: destination, relativeTo: base)
+        return URL(fileURLWithPath: trimmed, relativeTo: base).standardizedFileURL
     }
 
     private func open(_ url: URL) {
+        MarkerLog.render("open link \(url.absoluteString)")
         NSWorkspace.shared.open(url)
     }
 
+    // MARK: - Checkboxes
+
     private func toggleCheckboxIfClicked(at point: NSPoint) -> Bool {
         syncParseIfNeeded()
-        guard let index = characterIndex(at: point), !parsed.lines.isEmpty else { return false }
+        guard !parsed.lines.isEmpty else { return false }
+        let index = documentIndex(at: point)
         let line = parsed.lines[parsed.lineIndex(at: index)]
         guard case .listItem(_, _, let checkbox) = line.kind, let box = checkbox else { return false }
 
@@ -571,10 +617,12 @@ extension MarkdownTextView {
         return true
     }
 
+    // MARK: - Context menu
+
     override func menu(for event: NSEvent) -> NSMenu? {
         let menu = super.menu(for: event)
         let point = convert(event.locationInWindow, from: nil)
-        guard let url = link(at: point), let menu else { return menu }
+        guard let url = linkURL(atCharacter: documentIndex(at: point)), let menu else { return menu }
         let item = NSMenuItem(title: "Open Link", action: #selector(openLinkFromMenu(_:)),
                               keyEquivalent: "")
         item.target = self

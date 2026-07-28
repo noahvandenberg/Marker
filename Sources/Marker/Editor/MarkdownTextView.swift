@@ -29,6 +29,8 @@ final class MarkdownTextView: NSTextView {
     var cachedTableCaretRect: NSRect?
     var tableCaretRefreshScheduled = false
     var tableCaretLayer: CALayer?
+    var linkTracking: NSTrackingArea?
+    var lastHoveredIndex = -1
     private var _lastTableSelectionKey = ""
     private var renderRepaintWork: DispatchWorkItem?
     private var isAdjustingScroll = false

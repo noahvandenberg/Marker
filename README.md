@@ -75,6 +75,12 @@ Settings, since a network request would leak that you opened the file.
 all resolve, for links and images alike. Definition lines are styled quietly out
 of the way rather than hidden.
 
+**Opening links.** Links look like links, so clicking one follows it, and the
+pointer becomes a hand over them. Option-click puts the caret inside instead, for
+editing the text of one, and `⌘↩` opens the link the caret is already in. The
+destination is read from the parse rather than from a text attribute, so it works
+inside a drawn table too — relative paths resolve against the document's folder.
+
 **Tables.** GFM pipe tables are laid out properly: columns sized to fit the
 measure, cell text wrapped, rows as tall as their content, per-column alignment
 from the delimiter row, and inline formatting inside cells. A wide table fits
@@ -112,8 +118,7 @@ has a published release whose tag is a higher version than the running build.
 
 **The rest.** Document-based: tabs, autosave in place, Versions, Revert.
 Original file encoding and CRLF line endings survive a round trip. An Outline
-menu jumps to any heading. `⌘`-click opens a link. Export to a self-contained
-HTML file.
+menu jumps to any heading. Export to a self-contained HTML file.
 
 ## Shortcuts
 
@@ -123,6 +128,7 @@ HTML file.
 | Inline code | `⌃⌘C` |
 | Strikethrough / Highlight | `⇧⌘X` / `⇧⌘H` |
 | Link | `⌘K` |
+| Open link | click, or `⌘↩` |
 | Heading 1–6 / Body | `⌃⌘1`–`⌃⌘6` / `⌃⌘0` |
 | Bullet / Numbered / Task list | `⇧⌘8` / `⇧⌘7` / `⇧⌘9` |
 | Toggle task | `⇧⌘D` |
