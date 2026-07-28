@@ -32,6 +32,11 @@ if [ -d "$ROOT/Resources/Web" ]; then
   cp -R "$ROOT/Resources/Web" "$APP/Contents/Resources/Web"
 fi
 
+# BPE vocabulary for the token counter.
+if [ -d "$ROOT/Resources/Tokenizer" ]; then
+  cp -R "$ROOT/Resources/Tokenizer" "$APP/Contents/Resources/Tokenizer"
+fi
+
 echo "==> Signing (ad-hoc)"
 codesign --force --deep --sign - "$APP"
 

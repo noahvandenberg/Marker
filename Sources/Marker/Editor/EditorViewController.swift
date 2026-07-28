@@ -12,6 +12,9 @@ final class EditorViewController: NSViewController, NSUserInterfaceValidations {
 
     private var wordCountWorkItem: DispatchWorkItem?
     private var measureRestyleWork: DispatchWorkItem?
+    private var latestWords = 0
+    private var latestCharacters = 0
+    private var latestTokens: Int?
     var onStatsChange: ((String) -> Void)?
 
     private var preferences: Preferences { .shared }
@@ -208,20 +211,50 @@ final class EditorViewController: NSViewController, NSUserInterfaceValidations {
 
     private func updateStats() {
         let text = textView.string
-        let characters = text.count
+        latestCharacters = text.count
         var words = 0
         text.enumerateSubstrings(in: text.startIndex..<text.endIndex,
                                  options: [.byWords, .localized]) { _, _, _, _ in
             words += 1
         }
-        let wordLabel = words == 1 ? "word" : "words"
-        onStatsChange?("\(words) \(wordLabel) · \(characters) characters")
+        latestWords = words
+        publishStats()
+
+        guard preferences.showTokenCount else {
+            latestTokens = nil
+            return
+        }
+        // Real byte-pair encoding, so it runs off the main thread. The previous
+        // figure stays on screen until the new one lands rather than blinking out.
+        TokenCounter.shared.count(text) { [weak self] tokens in
+            guard let self, let tokens else { return }
+            self.latestTokens = tokens
+            self.publishStats()
+        }
     }
+
+    private func publishStats() {
+        var parts = ["\(Self.decimal.string(from: latestWords as NSNumber) ?? "0") "
+                     + (latestWords == 1 ? "word" : "words"),
+                     "\(Self.decimal.string(from: latestCharacters as NSNumber) ?? "0") characters"]
+        if let latestTokens {
+            parts.append("\(Self.decimal.string(from: latestTokens as NSNumber) ?? "0") "
+                         + (latestTokens == 1 ? "token" : "tokens"))
+        }
+        onStatsChange?(parts.joined(separator: " · "))
+    }
+
+    private static let decimal: NumberFormatter = {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        return formatter
+    }()
 
     // MARK: - Preferences
 
     @objc private func preferencesDidChange() {
         textView.preferencesDidChange()
+        updateStats()
         scrollView.backgroundColor = preferences.theme.background
         updateMeasure()
         if preferences.typewriterMode { centerCaret(animated: false) }

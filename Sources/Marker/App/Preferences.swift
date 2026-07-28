@@ -44,6 +44,7 @@ final class Preferences: ObservableObject {
         static let renderDiagrams = "renderDiagrams"
         static let loadRemoteImages = "loadRemoteImages"
         static let showMarkdownSource = "showMarkdownSource"
+        static let showTokenCount = "showTokenCount"
     }
 
     @Published var fontSize: CGFloat { didSet { persist(Double(fontSize), Key.fontSize) } }
@@ -65,6 +66,8 @@ final class Preferences: ObservableObject {
     @Published var loadRemoteImages: Bool { didSet { persist(loadRemoteImages, Key.loadRemoteImages) } }
     /// Escape hatch: show every syntax marker instead of hiding them.
     @Published var showMarkdownSource: Bool { didSet { persist(showMarkdownSource, Key.showMarkdownSource) } }
+    /// Token counting loads a ~3.6 MB vocabulary, so it can be switched off.
+    @Published var showTokenCount: Bool { didSet { persist(showTokenCount, Key.showTokenCount) } }
 
     private var suppressNotifications = true
     private var cancellables = Set<AnyCancellable>()
@@ -85,6 +88,7 @@ final class Preferences: ObservableObject {
             Key.renderDiagrams: true,
             Key.loadRemoteImages: false,
             Key.showMarkdownSource: false,
+            Key.showTokenCount: true,
         ])
 
         fontSize = CGFloat(defaults.double(forKey: Key.fontSize))
@@ -100,6 +104,7 @@ final class Preferences: ObservableObject {
         renderDiagrams = defaults.bool(forKey: Key.renderDiagrams)
         loadRemoteImages = defaults.bool(forKey: Key.loadRemoteImages)
         showMarkdownSource = defaults.bool(forKey: Key.showMarkdownSource)
+        showTokenCount = defaults.bool(forKey: Key.showTokenCount)
 
         suppressNotifications = false
     }

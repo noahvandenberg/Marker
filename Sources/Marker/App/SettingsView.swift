@@ -56,6 +56,12 @@ struct SettingsView: View {
                 Toggle("Render LaTeX math and Mermaid diagrams",
                        isOn: $preferences.renderDiagrams)
                 Toggle("Load images from the web", isOn: $preferences.loadRemoteImages)
+                Toggle("Count tokens", isOn: $preferences.showTokenCount)
+                Text("Token counts use OpenAI's o200k_base vocabulary — exact for "
+                     + "GPT-4o and GPT-5, and close for other models. The vocabulary "
+                     + "is about 3.6 MB and loads the first time a count runs.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 Text("Images on disk always load. Fetching remote images makes a "
                      + "network request that reveals when you open a document, so "
                      + "it stays off unless you want it.")

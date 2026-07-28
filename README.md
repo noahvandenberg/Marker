@@ -24,7 +24,8 @@ That compiles, assembles `Marker.app`, ad-hoc signs it, and copies it to
 
 Requires Xcode 16 or newer and macOS 14+. There are no Swift package
 dependencies. `Resources/Web/` holds vendored KaTeX 0.16.11 and Mermaid 11.16.0
-(both MIT, licenses included alongside them), which is most of the ~5 MB bundle.
+(both MIT, licenses included alongside them) and `Resources/Tokenizer/` holds
+OpenAI's `o200k_base` vocabulary; together they are most of the ~10 MB bundle.
 
 ## What it does
 
@@ -95,10 +96,17 @@ Typewriter mode (`⌃⌘Y`) keeps the caret vertically centered. The measure, te
 size, line height, typeface (system sans, New York serif, SF Rounded, or mono),
 and light/dark appearance are all adjustable in Settings (`⌘,`).
 
+**Counts.** Words, characters and tokens sit in the window subtitle. The token
+count is real byte-pair encoding against OpenAI's `o200k_base` vocabulary — a
+port of tiktoken's merge loop, not a chars-per-token estimate — so it is exact
+for GPT-4o and GPT-5 and close for other families, whose vocabularies aren't
+published. It costs ~3.6 MB on disk and ~30 MB of RAM once loaded, so Settings
+can turn it off.
+
 **The rest.** Document-based: tabs, autosave in place, Versions, Revert.
 Original file encoding and CRLF line endings survive a round trip. An Outline
 menu jumps to any heading. `⌘`-click opens a link. Export to a self-contained
-HTML file. Word and character counts sit in the window subtitle.
+HTML file.
 
 ## Shortcuts
 
@@ -132,6 +140,7 @@ Sources/Marker/
 ├── Styling/       theme, styler (parse → NSTextStorage attributes), syntax highlighter, table layout
 ├── Editor/        NSTextView subclass, input handling, TextKit 2 layout fragments
 ├── Rendering/     offscreen KaTeX/Mermaid rasterizer, image loader
+├── Tokenizer/     byte-pair encoder for the token count
 ├── Document/      NSDocument and its window controller
 └── App/           menu bar, preferences, SwiftUI settings
 ```
