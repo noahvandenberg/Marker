@@ -235,11 +235,15 @@ final class MarkdownStyler {
 
         case .fenceOpen(let language, _):
             scanInlines = false
-            decoration.codeBlock = CodeBlockDecoration(isFirst: true, isLast: false, language: language)
+            decoration.codeBlock = CodeBlockDecoration(isFirst: true,
+                                                       isLast: false,
+                                                       language: language)
             paragraph.firstLineHeadIndent = quoteInset + theme.codePadding
             paragraph.headIndent = quoteInset + theme.codePadding
             paragraph.paragraphSpacingBefore = theme.baseSize * 0.5
             paragraph.lineHeightMultiple = 1.0
+            paragraph.minimumLineHeight = CodeBlockChrome.copyButtonSize.height
+                + CodeBlockChrome.inset * 2
             attributes[.font] = NSFont.monospacedSystemFont(ofSize: round(theme.baseSize * 0.72),
                                                             weight: .medium)
             attributes[.foregroundColor] = theme.secondaryText
@@ -247,10 +251,6 @@ final class MarkdownStyler {
             if !revealed {
                 // Hide the backticks but keep the language name as a label.
                 concealRanges.append(fenceCharRange(chars, line: line))
-                if language == nil {
-                    paragraph.minimumLineHeight = 10
-                    paragraph.maximumLineHeight = 10
-                }
             }
 
         case .fenceClose:

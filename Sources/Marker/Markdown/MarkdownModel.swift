@@ -165,6 +165,34 @@ struct CodeRegion {
     }
 }
 
+enum CodeBlockText {
+    /// Returns the visible body of a code block without fence lines or quote
+    /// prefixes, while preserving the document's line-ending style internally.
+    static func body(of region: CodeRegion,
+                     in document: ParsedDocument,
+                     source: NSString) -> String {
+        let lines = region.contentLineRange
+        guard !lines.isEmpty,
+              lines.lowerBound >= 0,
+              lines.upperBound <= document.lines.count else { return "" }
+
+        var result = ""
+        for index in lines {
+            let line = document.lines[index]
+            guard NSMaxRange(line.contentRange) <= source.length else { return "" }
+            result += source.substring(with: line.contentRange)
+            if index < lines.upperBound - 1 {
+                let separator = NSRange(location: NSMaxRange(line.range),
+                                        length: NSMaxRange(line.fullRange)
+                                            - NSMaxRange(line.range))
+                guard NSMaxRange(separator) <= source.length else { return "" }
+                result += source.substring(with: separator)
+            }
+        }
+        return result
+    }
+}
+
 struct TableRegion {
     var lineRange: Range<Int>
     var charRange: NSRange

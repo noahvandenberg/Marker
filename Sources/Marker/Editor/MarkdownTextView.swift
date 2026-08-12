@@ -31,6 +31,8 @@ final class MarkdownTextView: NSTextView {
     var tableCaretLayer: CALayer?
     var linkTracking: NSTrackingArea?
     var lastHoveredIndex = -1
+    var codeCopyButtons: [Int: NSButton] = [:]
+    var codeCopyButtonRefreshScheduled = false
     private var _lastTableSelectionKey = ""
     private var renderRepaintWork: DispatchWorkItem?
     private var isAdjustingScroll = false
@@ -454,6 +456,7 @@ final class MarkdownTextView: NSTextView {
         // The caret rect comes from a layout fragment frame, which is meaningless
         // until the layout we just invalidated has settled. Recompute next turn.
         scheduleTableCaretRefresh()
+        scheduleCodeCopyButtonRefresh()
     }
 
     private func invalidateLayout(for range: NSRange?) {
@@ -681,6 +684,7 @@ final class MarkdownTextView: NSTextView {
     override func setFrameSize(_ newSize: NSSize) {
         super.setFrameSize(newSize)
         styler.context.containerWidth = textContainer?.size.width ?? newSize.width
+        scheduleCodeCopyButtonRefresh()
     }
 
     // MARK: - Focus-mode repaint on preference change

@@ -30,6 +30,19 @@ struct CodeBlockDecoration {
     var language: String?
 }
 
+/// Shared geometry for the drawn code-block controls and their hit targets.
+enum CodeBlockChrome {
+    static let copyButtonSize = CGSize(width: 56, height: 24)
+    static let inset: CGFloat = 6
+
+    static func copyButtonRect(in blockRect: CGRect) -> CGRect {
+        CGRect(x: blockRect.maxX - copyButtonSize.width - inset,
+               y: blockRect.minY + inset,
+               width: copyButtonSize.width,
+               height: copyButtonSize.height)
+    }
+}
+
 struct BulletDecoration {
     /// The number to draw for ordered items, e.g. "3." Unordered items draw a shape.
     var text: String
