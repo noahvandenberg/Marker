@@ -578,6 +578,80 @@ extension MarkdownTextView {
         }
     }
 
+    // MARK: - Code block copying
+
+    func scheduleCodeCopyButtonRefresh() {
+        guard !codeCopyButtonRefreshScheduled else { return }
+        codeCopyButtonRefreshScheduled = true
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.codeCopyButtonRefreshScheduled = false
+            self.refreshCodeCopyButtons()
+        }
+    }
+
+    private func refreshCodeCopyButtons() {
+        guard isParseCurrent else { return }
+
+        var active = Set<Int>()
+        for (regionIndex, region) in parsed.codeRegions.enumerated()
+        where region.fenced && region.content == .code {
+            guard let firstLine = region.openFenceLine,
+                  firstLine < parsed.lines.count else { continue }
+            active.insert(regionIndex)
+
+            let button: NSButton
+            if let existing = codeCopyButtons[regionIndex] {
+                button = existing
+            } else {
+                button = NSButton(title: "Copy", target: self,
+                                  action: #selector(copyCodeBlockFromButton(_:)))
+                button.bezelStyle = .rounded
+                button.controlSize = .small
+                button.font = .systemFont(ofSize: 11, weight: .medium)
+                button.focusRingType = .none
+                button.toolTip = "Copy code"
+                addSubview(button)
+                codeCopyButtons[regionIndex] = button
+            }
+            button.tag = regionIndex
+
+            let anchor = parsed.lines[firstLine].fullRange.location
+            guard let fragment = fragmentFrame(atCharacter: anchor) else {
+                button.isHidden = true
+                continue
+            }
+            let blockRect = CGRect(x: textContainerInset.width,
+                                   y: textContainerInset.height + fragment.minY,
+                                   width: styler.context.containerWidth,
+                                   height: fragment.height)
+            button.frame = CodeBlockChrome.copyButtonRect(in: blockRect)
+            button.isHidden = false
+        }
+
+        let stale = codeCopyButtons.keys.filter { !active.contains($0) }
+        for regionIndex in stale {
+            codeCopyButtons.removeValue(forKey: regionIndex)?.removeFromSuperview()
+        }
+    }
+
+    /// Copies only a fenced block's body, excluding the opening/closing fences
+    /// and the language info string. The code itself remains normal selectable,
+    /// editable NSTextView content underneath this native button.
+    @objc private func copyCodeBlockFromButton(_ sender: NSButton) {
+        syncParseIfNeeded()
+        guard sender.tag >= 0, sender.tag < parsed.codeRegions.count else { return }
+        let region = parsed.codeRegions[sender.tag]
+        guard region.fenced, region.content == .code else { return }
+
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(CodeBlockText.body(of: region,
+                                                in: parsed,
+                                                source: nsString),
+                             forType: .string)
+    }
+
     // MARK: - Resolution
 
     private func resolvedURL(_ destination: String) -> URL? {

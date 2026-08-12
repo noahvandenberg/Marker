@@ -61,7 +61,7 @@ extension MarkdownTextView {
         }
     }
 
-    private func fragmentFrame(atCharacter index: Int) -> CGRect? {
+    func fragmentFrame(atCharacter index: Int) -> CGRect? {
         guard let layoutManager = textLayoutManager,
               let contentManager = layoutManager.textContentManager,
               let location = contentManager.location(contentManager.documentRange.location,

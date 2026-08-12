@@ -54,7 +54,9 @@ task checkbox to toggle it.
 a small label, and syntax highlighting for Swift, C/C++/Objective-C, JavaScript,
 TypeScript, Python, Ruby, Go, Rust, Java, Kotlin, C#, PHP, SQL, Lua, shell,
 YAML, TOML, JSON, HTML, CSS, and diffs. Spell checking is suppressed inside
-code, so identifiers don't pick up red squiggles.
+code, so identifiers don't pick up red squiggles. The Copy button copies only
+the block body (without its fences or language label); the code remains ordinary
+selectable, editable text.
 
 **Math.** `$x^2$` renders inline on the text baseline; `$$…$$` blocks and
 ```` ```math ```` fences render centered. Full KaTeX, so anything KaTeX supports

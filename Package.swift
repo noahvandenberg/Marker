@@ -9,6 +9,11 @@ let package = Package(
             name: "Marker",
             path: "Sources/Marker",
             swiftSettings: [.swiftLanguageMode(.v5)]
-        )
+        ),
+        .testTarget(
+            name: "MarkerTests",
+            dependencies: ["Marker"],
+            path: "Tests/MarkerTests"
+        ),
     ]
 )
