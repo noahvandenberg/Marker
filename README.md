@@ -6,7 +6,10 @@ the rendered words directly, not the source. The file on disk is still plain
 Markdown; nothing is ever rewritten behind your back.
 
 It edits plain `.md` files in place. No account, no sync service, no telemetry,
-no network access. The editing surface is one AppKit text view on TextKit 2,
+no required network access for local editing. Automatic GitHub release checks are enabled
+by default and can be disabled in Settings; manual checks also contact GitHub.
+These checks send an app/version user agent, not document contents. Remote image
+loading is a separate opt-in setting, described below. The editing surface is one AppKit text view on TextKit 2,
 driven by a Markdown parser written for editing rather than for producing an AST.
 
 Diagrams and equations are the exception: KaTeX and Mermaid are vendored into the
