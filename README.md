@@ -1,5 +1,7 @@
 # Marker
 
+> Development source has moved to [mac-tools/apps/Marker](https://github.com/noahvandenberg/mac-tools/tree/main/apps/Marker) (private). This public repository remains available for existing release links and the application's update checks.
+
 A native macOS Markdown editor. Headings render at their real size while you
 type, `**bold**` becomes **bold**, and the syntax markers stay hidden — you edit
 the rendered words directly, not the source. The file on disk is still plain
